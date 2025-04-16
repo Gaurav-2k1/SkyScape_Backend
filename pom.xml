@@ -15,6 +15,7 @@
     <packaging>pom</packaging>
     <modules>
         <module>user-service</module>
+        <module>auth-service</module>
         <module>api-gateway</module>
         <module>common-core</module>
     </modules>
