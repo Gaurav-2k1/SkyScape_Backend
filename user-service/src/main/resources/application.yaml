@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: user-service
+
+server:
+  servlet:
+    context-path: /iam
