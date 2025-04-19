@@ -6,6 +6,7 @@ import com.ums.application.constants.LookUpConstants;
 import com.ums.application.handler.strategy.FunctionalOtpStrategy;
 import com.ums.application.service.interfaces.ILoginService;
 import com.ums.application.service.interfaces.IOtpService;
+import com.ums.application.service.interfaces.IUserService;
 import com.ums.domain.entity.Login;
 import com.ums.dto.login.CreateLogin;
 import com.ums.dto.otp.*;
@@ -18,6 +19,7 @@ public class AuthenticationOtpStrategy implements FunctionalOtpStrategy {
 
     private final ILoginService loginService;
     private final IOtpService otpService;
+    private final IUserService userService;
 
     @Override
     public String getPurpose() {
@@ -31,6 +33,7 @@ public class AuthenticationOtpStrategy implements FunctionalOtpStrategy {
                 .authMethod(Constants.AUTH_METHOD_OTP)
                 .twoReferenceId(response.getReferenceId())
                 .build());
+
         return GenerateOtpResponse.builder()
                 .referenceId(login.getReferenceId())
                 .otp(response.getOtp())
@@ -45,6 +48,7 @@ public class AuthenticationOtpStrategy implements FunctionalOtpStrategy {
         loginRequest.setStatusLookup(LookUpConstants.STATUS_VALIDATED);
         loginService.saveLoginRequest(loginRequest);
         // Session Token provide
+
         return response;
     }
 

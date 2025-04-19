@@ -21,4 +21,5 @@ public class Otp extends BaseEntity {
     private String otpCode;
     private String deliveryChannel;
     private String status;
+    private String contactInfo;
 }
