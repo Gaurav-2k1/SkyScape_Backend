@@ -1,9 +1,8 @@
-package com.ums.facade.interfaces;
+package com.ums.application.service.interfaces;
 
 import com.ums.dto.otp.*;
 
-public interface IOtpFacade {
-
+public interface IOtpService {
     GenerateOtpResponse generateOtpAndProcess(GenerateOtpRequest generateOtpRequest);
 
     ValidateOtpResponse validateOtpAndProcess(ValidateOtpRequest validateOtpRequest);

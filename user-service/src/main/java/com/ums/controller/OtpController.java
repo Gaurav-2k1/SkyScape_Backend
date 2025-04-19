@@ -1,17 +1,18 @@
 package com.ums.controller;
 
 import com.ssh.response.ApiResponse;
+import com.ssh.utils.ResponseUtil;
 import com.ums.controller.interfaces.IOtpController;
-import com.ums.dto.otp.GenerateOtpRequest;
-import com.ums.dto.otp.GenerateOtpResponse;
-import com.ums.dto.otp.ValidateOtpRequest;
-import com.ums.dto.otp.ValidateOtpResponse;
+import com.ums.dto.otp.*;
 import com.ums.facade.interfaces.IOtpFacade;
 import lombok.AllArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-@RequestMapping("/v1/otp")
+@RestController
+
+//@RequestMapping("/v1/otp")
 @AllArgsConstructor
 public class OtpController implements IOtpController {
 
@@ -19,11 +20,23 @@ public class OtpController implements IOtpController {
 
     @Override
     public ResponseEntity<ApiResponse<GenerateOtpResponse>> generateOtp(GenerateOtpRequest generateOtpRequest) {
-        return null;
+        GenerateOtpResponse response = otpFacade.generateOtpAndProcess(generateOtpRequest);
+        return ResponseUtil.success(response, "Otp Sent Successfully", HttpStatus.OK);
     }
 
     @Override
-    public ResponseEntity<ApiResponse<ValidateOtpResponse>> validateOtp(ValidateOtpRequest validateOtpRequest) {
-        return null;
+    public ResponseEntity<ApiResponse<Object>> validateOtp(ValidateOtpRequest validateOtpRequest) {
+        ValidateOtpResponse response = otpFacade.validateOtpAndProcess(validateOtpRequest);
+        return ResponseUtil.success(
+                response,
+                "Otp Validated Successfully", HttpStatus.OK);
+    }
+
+    @Override
+    public ResponseEntity<ApiResponse<RegenerateOtpResponse>> resendOtp(RegenerateOtpRequest regenerateOtpRequest) {
+        RegenerateOtpResponse response = otpFacade.regenerateOtpAndProcess(regenerateOtpRequest);
+        return ResponseUtil.success(
+                response,
+                "Otp Resent Sent Successfully", HttpStatus.OK);
     }
 }

@@ -1,23 +1,19 @@
 package com.ums.dto.otp;
 
+
 import com.ums.annotations.interfaces.ValidDeliveryChannel;
 import com.ums.annotations.interfaces.ValidFunctionalArea;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
-import lombok.Builder;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 
 import java.util.UUID;
 
-
-@Builder
 @Data
-public class ValidateOtpRequest {
+@AllArgsConstructor
+public class RegenerateOtpRequest {
     @NotNull(message = "ReferenceId should not be null")
     private UUID referenceId;
-    @NotNull(message = "Otp should not be null")
-    @Size(min = 6, max = 6)
-    private String otp;
     @ValidDeliveryChannel
     private String deliveryChannel;
     @ValidFunctionalArea

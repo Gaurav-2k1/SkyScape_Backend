@@ -1,21 +1,25 @@
 package com.ums.controller.interfaces;
 
 import com.ssh.response.ApiResponse;
-import com.ums.dto.otp.GenerateOtpRequest;
-import com.ums.dto.otp.GenerateOtpResponse;
-import com.ums.dto.otp.ValidateOtpRequest;
-import com.ums.dto.otp.ValidateOtpResponse;
+import com.ums.dto.otp.*;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@RestController
+@Validated
+@RequestMapping("/v1/otp")
 public interface IOtpController {
 
     @PostMapping("/send")
-    ResponseEntity<ApiResponse<GenerateOtpResponse>> generateOtp(@RequestBody GenerateOtpRequest generateOtpRequest);
+    ResponseEntity<ApiResponse<GenerateOtpResponse>> generateOtp(@RequestBody @Valid GenerateOtpRequest generateOtpRequest);
 
     @PostMapping("/validate")
-    ResponseEntity<ApiResponse<ValidateOtpResponse>> validateOtp(@RequestBody ValidateOtpRequest validateOtpRequest);
+    ResponseEntity<ApiResponse<Object>> validateOtp(@RequestBody @Valid ValidateOtpRequest validateOtpRequest);
+
+    @PostMapping("/resend")
+    ResponseEntity<ApiResponse<RegenerateOtpResponse>> resendOtp(@RequestBody @Valid RegenerateOtpRequest regenerateOtpRequest);
 }
