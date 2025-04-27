@@ -5,17 +5,15 @@ import com.ssh.exceptions.NotFoundException;
 import com.ssh.redis.RedisService;
 import com.ssh.ums.application.constants.Constants;
 import com.ssh.ums.application.constants.LookUpConstants;
+import com.ssh.ums.application.enums.FunctionalAreaEnum;
 import com.ssh.ums.application.handler.strategy.FunctionalOtpStrategy;
-import com.ssh.ums.application.service.interfaces.ILoginService;
-import com.ssh.ums.application.service.interfaces.IOtpService;
-import com.ssh.ums.application.service.interfaces.IUserService;
-import com.ssh.ums.domain.entity.Login;
-import com.ssh.ums.domain.entity.user.UserProfile;
+import com.ssh.ums.application.service.interfaces.*;
+import com.ssh.ums.domain.entity.auth.Login;
 import com.ssh.ums.dto.login.CreateLogin;
-import com.ssh.ums.dto.login.LoginUserTempCache;
+import com.ssh.ums.dto.cache.LoginUserTempCache;
 import com.ssh.ums.dto.otp.*;
 import com.ssh.ums.dto.user.CreateUserDto;
-import com.ssh.ums.dto.user.UserProfileTempCache;
+import com.ssh.ums.dto.cache.UserProfileTempCache;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -30,99 +28,111 @@ public class AuthenticationOtpStrategy implements FunctionalOtpStrategy {
     private final IOtpService otpService;
     private final IUserService userService;
     private final RedisService redisService;
+    private final IDeviceDetailsService deviceDetailsService;
+    private final ISessionService sessionService;
 
     @Override
     public String getPurpose() {
-        return LookUpConstants.FUNCTIONAL_AREA_LOGIN;
+        return String.valueOf(FunctionalAreaEnum.FUNCTIONAL_AREA_LOGIN);
     }
 
-    @Override
-    public GenerateOtpResponse sendOtp(GenerateOtpRequest generateOtpRequest) {
-        GenerateOtpResponse response = otpService.generateOtpAndProcess(generateOtpRequest);
-        String emailId = generateOtpRequest.getEmail();
-        String mobileNumber = generateOtpRequest.getMobile();
 
+    @Override
+    public GenerateOtpResponse sendOtp(GenerateOtpRequest request) {
+        GenerateOtpResponse otpResponse = otpService.generateOtpAndProcess(request);
+
+        String email = request.getEmail();
+        String mobile = request.getMobile();
         UUID referenceId;
-        LoginUserTempCache userTempCache = LoginUserTempCache.builder().build();
-        if (userService.checkUserProfileFromEmailOrMobile(emailId, mobileNumber) == null) {
-            UserProfileTempCache userProfileTempCache = UserProfileTempCache.builder()
-                    .emailId(generateOtpRequest.getEmail())
-                    .mobileNumber(generateOtpRequest.getMobile())
+        LoginUserTempCache tempCache = LoginUserTempCache.builder().build();
+
+        // Check if user exists
+        boolean isExistingUser = userService.checkUserProfileFromEmailOrMobile(email, mobile) != null;
+
+        if (!isExistingUser) {
+            // For new user, cache temp user profile
+            UserProfileTempCache tempProfile = UserProfileTempCache.builder()
+                    .emailId(email)
+                    .mobileNumber(mobile)
                     .authMethod(Constants.AUTH_METHOD_OTP)
-                    .twoReferenceId(response.getReferenceId())
+                    .twoReferenceId(otpResponse.getReferenceId())
                     .build();
-            String cacheKey = "USER_TEMP:" + userProfileTempCache.getReferenceId();
-            redisService.save(cacheKey, userProfileTempCache, 30, TimeUnit.MINUTES);
-            referenceId = userProfileTempCache.getReferenceId();
-            userTempCache.setIsUser(Boolean.FALSE);
+
+            String tempProfileCacheKey = "USER_TEMP:" + tempProfile.getReferenceId();
+            redisService.save(tempProfileCacheKey, tempProfile, 30, TimeUnit.MINUTES);
+            referenceId = tempProfile.getReferenceId();
+
+            tempCache.setIsUser(false);
         } else {
+            // For existing user, create login request
             Login login = loginService.createLoginRequest(CreateLogin.builder()
                     .authMethod(Constants.AUTH_METHOD_OTP)
-                    .twoReferenceId(response.getReferenceId())
+                    .twoReferenceId(otpResponse.getReferenceId())
                     .build());
             referenceId = login.getReferenceId();
-            userTempCache.setIsUser(Boolean.TRUE);
+
+            tempCache.setIsUser(true);
         }
 
-        String requestCache = "USER_REFERENCE:" + referenceId;
-        redisService.save(requestCache, userTempCache, 30, TimeUnit.MINUTES);
+        // Save reference cache for validation
+        String referenceCacheKey = "USER_REFERENCE:" + referenceId;
+        redisService.save(referenceCacheKey, tempCache, 30, TimeUnit.MINUTES);
 
         return GenerateOtpResponse.builder()
                 .referenceId(referenceId)
-                .otp(response.getOtp())
+                .otp(otpResponse.getOtp())
                 .build();
     }
 
     @Override
-    public ValidateOtpResponse validateOtp(ValidateOtpRequest validateOtpRequest) {
-        String requestCache = "USER_REFERENCE:" + validateOtpRequest.getReferenceId();
+    public ValidateOtpResponse validateOtp(ValidateOtpRequest request) {
+        String referenceCacheKey = "USER_REFERENCE:" + request.getReferenceId();
 
-        boolean isUser = redisService.get(requestCache, LoginUserTempCache.class).orElseThrow(
-                        () -> new NotFoundException("Invalid Reference Id")
-                )
-                .getIsUser();
-        Login loginRequest = null;
-        String userTempCacheKey = "USER_TEMP:" + validateOtpRequest.getReferenceId();
+        LoginUserTempCache tempCache = redisService.get(referenceCacheKey, LoginUserTempCache.class)
+                .orElseThrow(() -> new NotFoundException("Invalid Reference Id"));
 
-        if (isUser) {
-            loginRequest = loginService.getLoginRequest(validateOtpRequest.getReferenceId());
-            validateOtpRequest.setReferenceId(loginRequest.getTwoReferenceId());
+        boolean isExistingUser = tempCache.getIsUser();
+        Login login = null;
+        String tempUserCacheKey = "USER_TEMP:" + request.getReferenceId();
+
+        if (isExistingUser) {
+            login = loginService.getLoginRequest(request.getReferenceId());
+            request.setReferenceId(login.getTwoReferenceId());
         } else {
-
-            UserProfileTempCache userProfileTemp = redisService.get(userTempCacheKey, UserProfileTempCache.class)
+            UserProfileTempCache tempProfile = redisService.get(tempUserCacheKey, UserProfileTempCache.class)
                     .orElseThrow(() -> new NotFoundException("Invalid Reference Id"));
-            validateOtpRequest.setReferenceId(userProfileTemp.getTwoReferenceId());
+            request.setReferenceId(tempProfile.getTwoReferenceId());
         }
 
-        ValidateOtpResponse response = otpService.validateOtpAndProcess(validateOtpRequest);
+        ValidateOtpResponse otpValidationResponse = otpService.validateOtpAndProcess(request);
 
-        if (isUser) {
-            loginRequest.setStatusLookup(LookUpConstants.STATUS_VALIDATED);
-            loginService.saveLoginRequest(loginRequest);
+        if (isExistingUser) {
+            login.setStatusLookup(LookUpConstants.STATUS_VALIDATED);
+            loginService.saveLoginRequest(login);
         } else {
-
-
-            UserProfileTempCache userProfileTemp = redisService.get(userTempCacheKey, UserProfileTempCache.class)
+            UserProfileTempCache tempProfile = redisService.get(tempUserCacheKey, UserProfileTempCache.class)
                     .orElseThrow(() -> new NotFoundException("Invalid Reference Id"));
-            UserProfile userProfile = userService.createUserProfile(CreateUserDto.builder()
-                    .email(userProfileTemp.getEmailId())
-                    .firstName(userProfileTemp.getFirstName())
-                    .lastName(userProfileTemp.getLastName())
-                    .mobileNumber(userProfileTemp.getMobileNumber())
+
+            userService.createUserProfile(CreateUserDto.builder()
+                    .email(tempProfile.getEmailId())
+                    .firstName(tempProfile.getFirstName())
+                    .lastName(tempProfile.getLastName())
+                    .mobileNumber(tempProfile.getMobileNumber())
                     .build());
-
         }
 
+        // Optionally: Generate and return session token here
 
-        // Session Token provide
-
-        return response;
+        return otpValidationResponse;
     }
 
     @Override
-    public RegenerateOtpResponse regenerateOtpAndProcess(RegenerateOtpRequest regenerateOtpRequest) {
-        Login login = loginService.getLoginRequest(regenerateOtpRequest.getReferenceId());
-        regenerateOtpRequest.setReferenceId(login.getTwoReferenceId());
-        return otpService.regenerateOtpAndProcess(regenerateOtpRequest);
+    public RegenerateOtpResponse regenerateOtpAndProcess(RegenerateOtpRequest request) {
+        Login login = loginService.getLoginRequest(request.getReferenceId());
+        request.setReferenceId(login.getTwoReferenceId());
+
+        return otpService.regenerateOtpAndProcess(request);
     }
+
+
 }

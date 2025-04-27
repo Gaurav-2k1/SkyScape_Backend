@@ -2,9 +2,9 @@ package com.ssh.ums.domain.entity.otp;
 
 
 import com.ssh.entity.BaseEntity;
-import jakarta.persistence.Entity;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.PrePersist;
+import com.ssh.ums.application.enums.DeliveryChannelEnum;
+import com.ssh.ums.application.enums.FunctionalAreaEnum;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -23,8 +23,10 @@ public class OtpRequest extends BaseEntity {
     private UUID referenceId = UUID.randomUUID();
     private Integer incorrectAttempts;
     private String statusLookup;
-    private String functionalArea;
-    private String deliveryChannel;
+    @Enumerated(EnumType.STRING)
+    private FunctionalAreaEnum functionalArea;
+    @Enumerated(EnumType.STRING)
+    private DeliveryChannelEnum deliveryChannel;
     @OneToMany(mappedBy = "otpRequest")
     private Map<String, Otp> otpHashMap;
 

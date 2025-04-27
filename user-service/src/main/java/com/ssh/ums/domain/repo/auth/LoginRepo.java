@@ -1,6 +1,6 @@
-package com.ssh.ums.domain.repo;
+package com.ssh.ums.domain.repo.auth;
 
-import com.ssh.ums.domain.entity.Login;
+import com.ssh.ums.domain.entity.auth.Login;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

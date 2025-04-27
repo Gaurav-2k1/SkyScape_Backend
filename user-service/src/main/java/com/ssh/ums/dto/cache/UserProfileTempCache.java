@@ -1,4 +1,4 @@
-package com.ssh.ums.dto.user;
+package com.ssh.ums.dto.cache;
 
 
 import lombok.AllArgsConstructor;

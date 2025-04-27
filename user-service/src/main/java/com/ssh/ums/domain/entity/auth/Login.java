@@ -1,10 +1,10 @@
-package com.ssh.ums.domain.entity;
+package com.ssh.ums.domain.entity.auth;
 
 import com.ssh.entity.BaseEntity;
 import com.ssh.ums.domain.entity.user.UserProfile;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -23,14 +23,12 @@ public class Login extends BaseEntity {
     private UUID twoReferenceId;
     private String statusLookup;
     private String authMethod;
+    @Column(nullable = false, updatable = false)
+
     private String ipAddress;
+
+    @Column(nullable = false, updatable = false)
+    private String deviceInfo;
     @ManyToOne
     private UserProfile userProfile;
-
-    @PrePersist
-    public void ensureReferenceId() {
-        if (referenceId == null) {
-            referenceId = UUID.randomUUID();
-        }
-    }
 }

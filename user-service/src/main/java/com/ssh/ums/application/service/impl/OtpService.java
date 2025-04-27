@@ -5,6 +5,8 @@ import com.ssh.exceptions.NotFoundException;
 import com.ssh.exceptions.ServiceException;
 import com.ssh.ums.application.constants.Constants;
 import com.ssh.ums.application.constants.LookUpConstants;
+import com.ssh.ums.application.enums.DeliveryChannelEnum;
+import com.ssh.ums.application.enums.FunctionalAreaEnum;
 import com.ssh.ums.application.service.interfaces.IOtpService;
 import com.ssh.ums.application.utility.OtpUtil;
 import com.ssh.ums.domain.entity.otp.Otp;
@@ -29,10 +31,10 @@ public class OtpService implements IOtpService {
     @Override
     public GenerateOtpResponse generateOtpAndProcess(GenerateOtpRequest generateOtpRequest) {
         OtpRequest otpRequest = OtpRequest.builder()
-                .deliveryChannel(generateOtpRequest.getDeliveryChannel())
+                .deliveryChannel(DeliveryChannelEnum.valueOf(generateOtpRequest.getDeliveryChannel()))
                 .incorrectAttempts(Constants.ZERO)
                 .statusLookup(LookUpConstants.STATUS_PENDING)
-                .functionalArea(generateOtpRequest.getFunctionalArea())
+                .functionalArea(FunctionalAreaEnum.valueOf(generateOtpRequest.getFunctionalArea()))
                 .build();
 
         OtpRequest savedOtpRequest = otpRequestRepo.saveAndFlush(otpRequest);
@@ -42,20 +44,20 @@ public class OtpService implements IOtpService {
     private GenerateOtpResponse generateOtpForChannels(OtpRequest otpRequest, GenerateOtpRequest generateOtpRequest) {
         HashMap<String, Otp> otpHashMap = new HashMap<>();
         StringBuilder otpStringBuilder = new StringBuilder();
-        String deliveryChannel = otpRequest.getDeliveryChannel();
+        DeliveryChannelEnum deliveryChannel = otpRequest.getDeliveryChannel();
 
         // Generate OTP for email if applicable
-        if (deliveryChannel.equals(LookUpConstants.OTP_DELIVERY_CHANNEL_BOTH) ||
-                deliveryChannel.equals(LookUpConstants.OTP_DELIVERY_CHANNEL_EMAIL)) {
-            Otp savedEmailOtp = createAndSaveOtp(otpRequest, LookUpConstants.OTP_DELIVERY_CHANNEL_EMAIL, generateOtpRequest.getEmail());
+        if (deliveryChannel.equals(DeliveryChannelEnum.OTP_DELIVERY_CHANNEL_BOTH) ||
+                deliveryChannel.equals(DeliveryChannelEnum.OTP_DELIVERY_CHANNEL_EMAIL)) {
+            Otp savedEmailOtp = createAndSaveOtp(otpRequest, DeliveryChannelEnum.OTP_DELIVERY_CHANNEL_EMAIL, generateOtpRequest.getEmail());
             addOtpToMap(otpHashMap, savedEmailOtp);
             otpStringBuilder.append("Otp Email : ").append(savedEmailOtp.getOtpCode());
         }
 
         // Generate OTP for mobile if applicable
-        if (deliveryChannel.equals(LookUpConstants.OTP_DELIVERY_CHANNEL_BOTH) ||
-                deliveryChannel.equals(LookUpConstants.OTP_DELIVERY_CHANNEL_MOBILE)) {
-            Otp savedMobileOtp = createAndSaveOtp(otpRequest, LookUpConstants.OTP_DELIVERY_CHANNEL_MOBILE, generateOtpRequest.getMobile());
+        if (deliveryChannel.equals(DeliveryChannelEnum.OTP_DELIVERY_CHANNEL_BOTH) ||
+                deliveryChannel.equals(DeliveryChannelEnum.OTP_DELIVERY_CHANNEL_MOBILE)) {
+            Otp savedMobileOtp = createAndSaveOtp(otpRequest, DeliveryChannelEnum.OTP_DELIVERY_CHANNEL_MOBILE, generateOtpRequest.getMobile());
             addOtpToMap(otpHashMap, savedMobileOtp);
 
             if (!otpStringBuilder.isEmpty()) {
@@ -74,7 +76,7 @@ public class OtpService implements IOtpService {
                 .build();
     }
 
-    private Otp createAndSaveOtp(OtpRequest otpRequest, String deliveryChannel, String contact) {
+    private Otp createAndSaveOtp(OtpRequest otpRequest, DeliveryChannelEnum deliveryChannel, String contact) {
         Otp otp = Otp.builder()
                 .deliveryChannel(deliveryChannel)
                 .otpCode(OtpUtil.generateNumericOtp(Constants.NUMERIC_OTP_LENGTH))
@@ -105,7 +107,7 @@ public class OtpService implements IOtpService {
         }
 
         // Validate delivery channel compatibility
-        validateDeliveryChannelCompatibility(otpRequest.getDeliveryChannel(), validateOtpRequest.getDeliveryChannel());
+        validateDeliveryChannelCompatibility(String.valueOf(otpRequest.getDeliveryChannel()), validateOtpRequest.getDeliveryChannel());
 
         // Check if OTP is expired
         if (OtpUtil.isOtpExpired(otp.getCreatedAt())) {
@@ -147,8 +149,8 @@ public class OtpService implements IOtpService {
                 .orElseThrow(() -> new NotFoundException("Invalid reference Id"));
 
         // Validate if the requested delivery channel is compatible with the original request
-        String requestedChannel = regenerateOtpRequest.getDeliveryChannel();
-        String originalDeliveryChannel = otpRequest.getDeliveryChannel();
+        DeliveryChannelEnum requestedChannel = DeliveryChannelEnum.valueOf(regenerateOtpRequest.getDeliveryChannel());
+        DeliveryChannelEnum originalDeliveryChannel = otpRequest.getDeliveryChannel();
 
         if (!isValidDeliveryChannel(originalDeliveryChannel, requestedChannel)) {
             throw new ServiceException("Invalid delivery channel for this OTP request");
@@ -183,11 +185,11 @@ public class OtpService implements IOtpService {
     /**
      * Checks if the requested delivery channel is valid for the original functional area
      */
-    private boolean isValidDeliveryChannel(String originalDeliveryChannel, String deliveryChannel) {
+    private boolean isValidDeliveryChannel(DeliveryChannelEnum originalDeliveryChannel, DeliveryChannelEnum deliveryChannel) {
         // If original request was for BOTH, either email or mobile is valid
-        if (originalDeliveryChannel.equals(LookUpConstants.OTP_DELIVERY_CHANNEL_BOTH)) {
-            return deliveryChannel.equals(LookUpConstants.OTP_DELIVERY_CHANNEL_EMAIL) ||
-                    deliveryChannel.equals(LookUpConstants.OTP_DELIVERY_CHANNEL_MOBILE);
+        if (originalDeliveryChannel.equals(DeliveryChannelEnum.OTP_DELIVERY_CHANNEL_BOTH)) {
+            return deliveryChannel.equals(DeliveryChannelEnum.OTP_DELIVERY_CHANNEL_EMAIL) ||
+                    deliveryChannel.equals(DeliveryChannelEnum.OTP_DELIVERY_CHANNEL_MOBILE);
         }
         // Otherwise, the delivery channel must match the original functional area
         return originalDeliveryChannel.equals(deliveryChannel);
@@ -196,7 +198,7 @@ public class OtpService implements IOtpService {
     /**
      * Marks existing OTPs for the specified delivery channel as expired
      */
-    private String expireExistingOtps(OtpRequest otpRequest, String deliveryChannel) {
+    private String expireExistingOtps(OtpRequest otpRequest, DeliveryChannelEnum deliveryChannel) {
         if (otpRequest.getOtpHashMap() == null) {
             return null;
         }
