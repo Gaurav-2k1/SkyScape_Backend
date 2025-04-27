@@ -9,10 +9,12 @@ import com.ssh.ums.domain.entity.auth.Session;
 import com.ssh.ums.domain.entity.user.UserProfile;
 import com.ssh.ums.domain.repo.auth.SessionRepo;
 import com.ssh.utils.JwtUtils;
+import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @AllArgsConstructor
@@ -23,9 +25,12 @@ public class SessionService implements ISessionService {
     private final SessionRepo sessionRepo;
 
     @Override
+    @Transactional
     public TokenObject createSession(Login login) {
         Session session = Session.builder()
                 .login(login)
+                .isCurrent(Boolean.TRUE)
+                .location("location")
                 .status(SessionStatus.ACTIVE)
                 .build();
 
@@ -35,7 +40,7 @@ public class SessionService implements ISessionService {
 
         TokenObject tokenObject = jwtUtils.generateToken(userId, String.valueOf(savedSession.getSessionId()));
 
-        redisService.save(userId + ":" + session.getSessionId(), tokenObject);
+        redisService.save(userId + ":" + session.getSessionId(), tokenObject, 30, TimeUnit.MINUTES);
 
         return tokenObject;
     }

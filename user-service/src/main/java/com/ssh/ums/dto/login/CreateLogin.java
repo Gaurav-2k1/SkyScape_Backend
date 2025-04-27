@@ -11,5 +11,8 @@ import java.util.UUID;
 public class CreateLogin {
     private UUID twoReferenceId;
     private String authMethod;
+    private String statusLookup;
+    private String ipAddress;
+    private String deviceInfo;
 
 }

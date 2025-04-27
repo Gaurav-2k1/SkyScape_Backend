@@ -1,6 +1,7 @@
 package com.ssh.ums.application.handler.strategyImpl;
 
 
+import com.ssh.dtos.TokenObject;
 import com.ssh.exceptions.NotFoundException;
 import com.ssh.redis.RedisService;
 import com.ssh.ums.application.constants.Constants;
@@ -9,11 +10,12 @@ import com.ssh.ums.application.enums.FunctionalAreaEnum;
 import com.ssh.ums.application.handler.strategy.FunctionalOtpStrategy;
 import com.ssh.ums.application.service.interfaces.*;
 import com.ssh.ums.domain.entity.auth.Login;
-import com.ssh.ums.dto.login.CreateLogin;
+import com.ssh.ums.domain.entity.user.UserProfile;
 import com.ssh.ums.dto.cache.LoginUserTempCache;
+import com.ssh.ums.dto.cache.UserProfileTempCache;
+import com.ssh.ums.dto.login.CreateLogin;
 import com.ssh.ums.dto.otp.*;
 import com.ssh.ums.dto.user.CreateUserDto;
-import com.ssh.ums.dto.cache.UserProfileTempCache;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -47,9 +49,9 @@ public class AuthenticationOtpStrategy implements FunctionalOtpStrategy {
         LoginUserTempCache tempCache = LoginUserTempCache.builder().build();
 
         // Check if user exists
-        boolean isExistingUser = userService.checkUserProfileFromEmailOrMobile(email, mobile) != null;
+        UserProfile user = userService.checkUserProfileFromEmailOrMobile(email, mobile);
 
-        if (!isExistingUser) {
+        if (user == null) {
             // For new user, cache temp user profile
             UserProfileTempCache tempProfile = UserProfileTempCache.builder()
                     .emailId(email)
@@ -67,8 +69,11 @@ public class AuthenticationOtpStrategy implements FunctionalOtpStrategy {
             // For existing user, create login request
             Login login = loginService.createLoginRequest(CreateLogin.builder()
                     .authMethod(Constants.AUTH_METHOD_OTP)
+                    .ipAddress(deviceDetailsService.extractDeviceDetails().getIpAddress())
+                    .deviceInfo(deviceDetailsService.extractDeviceDetails().getBrowser())
+                    .statusLookup(LookUpConstants.STATUS_PENDING)
                     .twoReferenceId(otpResponse.getReferenceId())
-                    .build());
+                    .build(), user);
             referenceId = login.getReferenceId();
 
             tempCache.setIsUser(true);
@@ -113,16 +118,27 @@ public class AuthenticationOtpStrategy implements FunctionalOtpStrategy {
             UserProfileTempCache tempProfile = redisService.get(tempUserCacheKey, UserProfileTempCache.class)
                     .orElseThrow(() -> new NotFoundException("Invalid Reference Id"));
 
-            userService.createUserProfile(CreateUserDto.builder()
+            UserProfile savedUser = userService.createUserProfile(CreateUserDto.builder()
                     .email(tempProfile.getEmailId())
                     .firstName(tempProfile.getFirstName())
                     .lastName(tempProfile.getLastName())
                     .mobileNumber(tempProfile.getMobileNumber())
                     .build());
+
+            login = loginService.createLoginRequest(CreateLogin.builder()
+                    .statusLookup(LookUpConstants.STATUS_VALIDATED)
+                    .ipAddress(deviceDetailsService.extractDeviceDetails().getIpAddress())
+                    .deviceInfo(deviceDetailsService.extractDeviceDetails().getBrowser())
+                    .authMethod(Constants.AUTH_METHOD_OTP)
+                    .twoReferenceId(tempProfile.getTwoReferenceId())
+                    .build(), savedUser);
+
         }
 
         // Optionally: Generate and return session token here
 
+        TokenObject tokenObject = sessionService.createSession(login);
+        otpValidationResponse.setResponse(tokenObject);
         return otpValidationResponse;
     }
 

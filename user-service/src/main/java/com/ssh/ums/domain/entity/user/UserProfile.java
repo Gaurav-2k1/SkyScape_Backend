@@ -22,3 +22,4 @@ public class UserProfile extends BaseEntity {
     private String emailId;
     private String mobileNumber;
 }
+

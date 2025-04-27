@@ -4,6 +4,7 @@ import com.ssh.entity.BaseEntity;
 import com.ssh.ums.domain.entity.user.UserProfile;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -30,5 +31,6 @@ public class Login extends BaseEntity {
     @Column(nullable = false, updatable = false)
     private String deviceInfo;
     @ManyToOne
+    @JoinColumn(nullable = false, updatable = false)
     private UserProfile userProfile;
 }

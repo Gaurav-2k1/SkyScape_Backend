@@ -7,6 +7,6 @@ import lombok.Data;
 @Data
 @Builder
 public class ValidateOtpResponse {
-    private String response;
+    private Object response;
     private Boolean validated;
 }

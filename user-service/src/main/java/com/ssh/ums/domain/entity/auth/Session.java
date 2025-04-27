@@ -21,7 +21,6 @@ public class Session extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private SessionStatus status;
     private Boolean isCurrent;
-    @Column(nullable = false, updatable = false)
     private String location;
     @Column(nullable = false, updatable = false)
     @Builder.Default
