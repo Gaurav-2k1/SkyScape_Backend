@@ -11,7 +11,7 @@ public class OtpUtil {
     private static final Duration OTP_EXPIRY_DURATION = Duration.ofMinutes(5);
 
     // Characters used for alphanumeric OTP
-    //testing
+    //testing - 2
 
 
     private static final String NUMERIC = "0123456789";
